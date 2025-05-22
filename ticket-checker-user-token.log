@@ -1,0 +1,3 @@
+Thu May 22 19:54:30 2025 python -u "c:\Users\user\OneDrive\桌面\UNIX\ticket-checker.py"->1 1 user-token status=200
+Thu May 22 19:54:53 2025 1->1 1 user-token status=200
+Thu May 22 20:00:07 2025 TPE->NRT 2025-05-23 user-token status=200
