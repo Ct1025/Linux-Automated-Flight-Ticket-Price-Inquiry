@@ -63,10 +63,10 @@ def main():
     # 飛行時間表（小時）
     flight_duration = {
         ("TPE", "NRT"): 3, ("TPE", "HND"): 3, ("TPE", "KIX"): 3,
-        ("TPE", "KUL"): 5, ("TPE", "SIN"): 5, ("TPE", "BKK"): 4,
+        ("TPE", "KUL"): 6, ("TPE", "SIN"): 6, ("TPE", "BKK"): 4,
         ("TPE", "ICN"): 2.5, ("TPE", "HKG"): 2,
         ("TPE", "LAX"): 12, ("TPE", "SFO"): 12,
-        ("NRT", "TPE"): 3, ("KUL", "TPE"): 5, ("SIN", "TPE"): 5,
+        ("NRT", "TPE"): 3, ("KUL", "TPE"): 6, ("SIN", "TPE"): 6,
         ("BKK", "TPE"): 4, ("ICN", "TPE"): 2.5, ("HKG", "TPE"): 2,
         ("LAX", "TPE"): 12, ("SFO", "TPE"): 12
     }
@@ -104,8 +104,8 @@ def main():
         filtered_flights = [f for f in sorted_flights if min_price <= f['price'] <= max_price]
         print("\033c", end="")  # 清除螢幕
         print(f"查詢條件：{_from} → {_to}  票種：{'單程' if _type=='1' else '來回'}  航空公司：{_airline if _airline else '不限'}\n")
-        print(f"{'編號':<8} {'航空公司':<16} {'去程時間':<24} {'回程時間':<24} {'價格':>8} {'網站':<30}")
-        print("-"*120)
+        print(f"{'編號':<8} {'航空公司':<16} {'去程時間':<24} {'回程時間':<24} {'飛行時間':<12} {'價格':>8} {'網站':<30}")
+        print("-"*140)
         for f in filtered_flights[:len(flights)]:
             if _type == "2":
                 go_time = format_time(f['date'], f['time'])
@@ -113,7 +113,12 @@ def main():
             else:
                 go_time = format_time(f['date'], f['time'])
                 return_time_fmt = "-"
-            print(f"{f['flight']:<8} {f['airline']:<16} {go_time:<24} {return_time_fmt:<24} ${f['price']:>7} {f['website']:<30}")
+
+            # Calculate flight duration
+            duration = flight_duration.get((_from.upper(), _to.upper()), 3)
+            duration_str = f"{int(duration)} 小時 {int((duration - int(duration)) * 60)} 分鐘"
+
+            print(f"{f['flight']:<8} {f['airline']:<16} {go_time:<24} {return_time_fmt:<24} {duration_str:<12} ${f['price']:>7} {f['website']:<30}")
         print(f"\n目前筆數：{len(filtered_flights)}")
 
     # 新增功能：查詢結果導出
@@ -174,6 +179,7 @@ def main():
             print("\n已結束查詢。\n")
             sys.exit(0)
 
+    print("\n提示：輸入 'r' 可以返回條件輸入界面。")
     add_flight_loop()
     # 在查詢完成後導出結果
     export_to_csv()
