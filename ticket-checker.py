@@ -1,27 +1,12 @@
-# ticket-checker.py (Final Integrated Version)
-import argparse
-import time
-import sys
-import random
-import os
-import json
-from datetime import datetime, timedelta
-
-# <<< ADDED: Ensure requests library is available >>>
-try:
-    import requests
-except ImportError:
-    print("[錯誤] 'requests' 函式庫未安裝。")
-    print("請在您的終端機執行: pip install requests")
-    sys.exit(1)
-
-# Define the path to the users.json file
-USERS_FILE_PATH = os.path.join(os.path.dirname(__file__), 'data', 'users.json')
-# API URL
-API_URL = "http://127.0.0.1:5000/api/flights"
-
-# (此處省略與原版相同的 NonBlockingInput, get_valid_date, load_users 程式碼以節省篇幅)
+# ticket-checker.py (Final Version with Real Search)
+# ... (此處省略與前版相同的 NonBlockingInput, load_users, get_valid_date 程式碼以節省篇幅) ...
 # --- Start of Platform-Agnostic Non-Blocking Input ---
+import os
+import sys
+import json
+import time
+from datetime import datetime, timedelta
+import requests
 class NonBlockingInput:
     def __init__(self):
         self.is_windows = os.name == 'nt'
@@ -50,6 +35,8 @@ class NonBlockingInput:
                 self.termios.tcsetattr(self.fd, self.termios.TCSADRAIN, self.old_settings)
             return ch
 nb_input = NonBlockingInput()
+USERS_FILE_PATH = os.path.join(os.path.dirname(__file__), 'data', 'users.json')
+API_URL = "http://127.0.0.1:5000/api/flights"
 def load_users():
     if not os.path.exists(USERS_FILE_PATH): return []
     with open(USERS_FILE_PATH, 'r', encoding='utf-8') as f:
@@ -67,19 +54,15 @@ def get_valid_date(prompt):
                 return parsed_date
         except ValueError as e: print(e if str(e) else "[錯誤] 日期格式錯誤，請輸入YYYY-MM-DD 或 today/tomorrow\n")
 
-
 def main():
     print("=== 歡迎使用 Ticket Checker (API 連線版) ===\n")
     
-    # --- Token Input and Permission Level Retrieval ---
     global token_input, current_permission_level
     users = load_users()
     if not users:
         print("\n[錯誤] 找不到任何使用者資料 (data/users.json)。")
-        print("請先執行 register.py 註冊至少一位使用者。")
         return
 
-    # Let user choose which user to act as
     print("請選擇要使用的 Token:")
     for i, user in enumerate(users):
         print(f"[{i+1}] 使用者: {user['username']} (權限: {user['permission_level']})")
@@ -91,22 +74,15 @@ def main():
                 selected_user = users[choice - 1]
                 token_input = selected_user['token']
                 current_permission_level = selected_user.get('permission_level', 'free')
-                print(f"\n✅ 已選擇使用者 '{selected_user['username']}'。開始 API 輪詢...")
-                time.sleep(1)
+                print(f"\n✅ 已選擇使用者 '{selected_user['username']}'。")
                 break
-            else:
-                print("無效選項，請重新輸入。")
-        except ValueError:
-            print("請輸入數字。")
+            else: print("無效選項，請重新輸入。")
+        except ValueError: print("請輸入數字。")
 
-    # --- Use query_conditions() for input validation ---
-    # <<< CHANGED: We now inform the user that these conditions are for demonstration >>>
     print("\n--- 正在設定查詢條件 ---")
-    print("注意：目前 API 為簡易版，僅回傳固定資料，以下條件僅為操作演練。")
-    query_conditions()
+    query_conditions() # 呼叫查詢條件函式
 
-    print("\n✅ 查詢條件確認：")
-    print(f"- 出發地：{_from}\n- 目的地：{_to}\n- 去程日期：{go_date}\n ...等")
+    print("\n✅ 查詢條件確認完成。")
     confirm = input("是否開始向 API 查詢？(y/n)：")
     if confirm.strip().lower() != 'y':
         print("已取消查詢。\n")
@@ -115,89 +91,84 @@ def main():
     print("\n正在連接 API 並啟動動態查詢，請稍候...\n")
     add_flight_loop()
 
-# <<< CHANGED: The API call function now takes the token as an argument >>>
-def fetch_flights_from_api(token):
+# <<< CHANGED: API call now accepts query parameters >>>
+def fetch_flights_from_api(token, params):
     headers = {"Authorization": f"Bearer {token}"}
     try:
-        response = requests.get(API_URL, headers=headers, timeout=5)
+        # 將 params 字典傳給 requests，它會自動轉換成 URL 查詢字串
+        response = requests.get(API_URL, headers=headers, params=params, timeout=5)
+        
         if response.status_code == 200:
             return response.json().get("flights", []), "OK"
-        elif response.status_code == 429:
-            return [], "請求過於頻繁 (Too Many Requests)"
-        elif response.status_code == 401:
-            return [], "Token 無效或未被伺服器識別"
-        else:
-            return [], f"伺服器錯誤, 狀態碼: {response.status_code}"
+        # ... (其他錯誤處理與前版相同) ...
+        elif response.status_code == 429: return [], "請求過於頻繁 (Too Many Requests)"
+        elif response.status_code == 401: return [], "Token 無效或未被伺服器識別"
+        else: return [], f"伺服器錯誤, 狀態碼: {response.status_code}"
     except requests.exceptions.RequestException as e:
         return [], f"無法連接至 API 伺服器: {e}"
 
-# <<< REMOVED: The old random_flight() function is no longer needed >>>
 
-# <<< CHANGED: The print_flights function is kept, but will display adapted API data >>>
 def print_flights(flights_from_api, status_msg):
     os.system('cls' if os.name == 'nt' else 'clear')
     print(f"=== Ticket Checker (API 連線版) | 權限: {current_permission_level.upper()} ===")
     print(f"狀態: {status_msg} | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"查詢條件：{_from} → {_to} (注意: API目前回傳固定資料)")
+    print(f"查詢條件：{_from} → {_to}")
     print("-" * 80)
-    print(f"{'航班號碼':<12} {'航空公司':<16} {'出發地':<8} {'目的地':<8} {'時間':<10} {'價格':>10}")
+    print(f"{'航班號碼':<12} {'航空公司':<18} {'出發地':<8} {'目的地':<8} {'時間':<10} {'價格':>10}")
     print("-" * 80)
 
     if not flights_from_api:
-        print("... 等待 API 回應 ...")
+        print("... API 未回傳符合條件的航班 ...")
     else:
+        # API現在回傳的資料更豐富了
         for f in flights_from_api:
-            # Adapt API data to fit the rich display format
-            # We add placeholder data for fields not provided by the simple API
-            f_adapted = {
-                "flight": f.get("flight", "N/A"),
-                "airline": "API Airline", # Placeholder
-                "from": f.get("from", "N/A"),
-                "to": f.get("to", "N/A"),
-                "time": f.get("time", "N/A"),
-                "price": f.get("price", 0)
-            }
-            print(f"{f_adapted['flight']:<12} {f_adapted['airline']:<16} {f_adapted['from']:<8} {f_adapted['to']:<8} {f_adapted['time']:<10} ${f_adapted['price']:>9,}")
+            print(f"{f.get('flight', 'N/A'):<12} {f.get('airline', 'N/A'):<18} {f.get('from', 'N/A'):<8} {f.get('to', 'N/A'):<8} {f.get('time', 'N/A'):<10} ${f.get('price', 0):>9,}")
     
     print("-" * 80)
-    print(f"目前顯示筆數：{len(flights_from_api)}")
+    print(f"找到 {len(flights_from_api)} 筆符合條件的航班")
     print("按下 Ctrl+C 結束程式")
 
 
-# <<< CHANGED: The main loop now calls the API instead of generating random data >>>
 def add_flight_loop():
     try:
-        # Permission level now determines the API call interval
-        interval_map = {"pro": 1, "plus": 3, "free": 5}
-        interval = interval_map.get(current_permission_level, 5) # Default to 5s
+        interval_map = {"pro": 2, "plus": 4, "free": 6} # 微調更新頻率
+        interval = interval_map.get(current_permission_level, 6)
 
         while True:
-            # 1. Fetch data from API using the selected token
-            api_flights, status = fetch_flights_from_api(token_input)
+            # <<< CHANGED: Prepare parameters and pass them to the API call >>>
+            # 建立要傳送給 API 的查詢參數字典
+            query_params = {
+                'from': _from,
+                'to': _to,
+                # 'date': go_date.strftime("%Y-%m-%d") # 未來可擴充
+            }
             
-            # 2. Display the data
+            # 呼叫 API，並傳入 token 和查詢參數
+            api_flights, status = fetch_flights_from_api(token_input, query_params)
+            
             print_flights(api_flights, status)
             
-            # 3. Wait for the next refresh cycle
             time.sleep(interval)
 
     except KeyboardInterrupt:
         print("\n已結束查詢。\n")
         sys.exit(0)
 
-# (query_conditions is kept as part of the UI, but it's not used by the API call itself)
+# <<< CHANGED: Simplified query_conditions, as we only use from/to for now >>>
 def query_conditions():
-  global _from, _to, _type, go_date, return_date, _time_range, _airline, min_price, max_price
-  valid_airports = ["TPE", "NRT", "HND", "KIX", "KUL", "SIN", "BKK", "ICN", "HKG", "LAX", "SFO"]
-  _from = input("請輸入出發地（IATA 機場代碼，例如 TPE）：").strip().upper()
-  _to = input("請輸入目的地（IATA 機場代碼，例如 NRT）：").strip().upper()
-  _type = "1" # Simplified for demo
-  go_date = datetime.now().date()
-  return_date = None
-  _time_range = "4"
-  _airline = "" 
-  min_price = 0
-  max_price = 99999
+    global _from, _to
+    valid_airports = ["TPE", "NRT", "HND", "KIX", "SIN", "BKK"]
+    
+    while True:
+        _from = input(f"請輸入出發地 ({'/'.join(valid_airports)}): ").strip().upper()
+        if _from in valid_airports: break
+        else: print("[錯誤] 無效的出發地！")
+        
+    while True:
+        _to = input(f"請輸入目的地 ({'/'.join(valid_airports)}): ").strip().upper()
+        if _to in valid_airports and _to != _from: break
+        elif _to == _from: print("[錯誤] 出發地與目的地不可相同！")
+        else: print("[錯誤] 無效的目的地！")
 
 if __name__ == "__main__":
     main()
