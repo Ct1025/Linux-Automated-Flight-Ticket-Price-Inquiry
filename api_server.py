@@ -1,9 +1,10 @@
-# api_server.py (Upgraded with Search Functionality)
+# api_server.py (Upgraded with DYNAMIC Random Flight Generation)
 from flask import Flask, request, jsonify
 from functools import wraps
 import time
 import os
 import json
+import random # <<< ADDED: Import the random library
 
 app = Flask(__name__)
 
@@ -43,42 +44,54 @@ def rate_limiter(f):
         return f(*args, **kwargs)
     return decorated
 
-# <<< ADDED: A larger "database" of flights to make searching meaningful >>>
-ALL_FLIGHTS = [
-    {"flight": "CI-100", "airline": "China Airlines", "from": "TPE", "to": "NRT", "time": "09:30", "price": 7500},
-    {"flight": "BR-198", "airline": "EVA Air", "from": "TPE", "to": "NRT", "time": "08:50", "price": 7800},
-    {"flight": "JX-800", "airline": "Starlux", "from": "TPE", "to": "NRT", "time": "10:00", "price": 8200},
-    {"flight": "CI-104", "airline": "China Airlines", "from": "TPE", "to": "HND", "time": "14:20", "price": 8500},
-    {"flight": "BR-190", "airline": "EVA Air", "from": "TPE", "to": "HND", "time": "16:00", "price": 8300},
-    {"flight": "CI-156", "airline": "China Airlines", "from": "TPE", "to": "KIX", "time": "08:30", "price": 6800},
-    {"flight": "JX-820", "airline": "Starlux", "from": "TPE", "to": "KIX", "time": "09:45", "price": 7200},
-    {"flight": "BR-225", "airline": "EVA Air", "from": "TPE", "to": "SIN", "time": "07:40", "price": 9500},
-    {"flight": "CI-751", "airline": "China Airlines", "from": "TPE", "to": "SIN", "time": "13:50", "price": 9200},
-    {"flight": "TG-635", "airline": "Thai Airways", "from": "TPE", "to": "BKK", "time": "20:05", "price": 6500},
-]
+# <<< REMOVED: The static ALL_FLIGHTS list is no longer needed >>>
 
-# <<< CHANGED: The flights endpoint now performs filtering >>>
+# <<< ADDED: The building blocks for random generation, moved from ticket-checker >>>
+AIRLINES = {
+    "CI": "China Airlines",
+    "BR": "EVA Air",
+    "JX": "Starlux",
+    "TG": "Thai Airways",
+    "JL": "Japan Airlines"
+}
+
+# <<< ADDED: The new random flight generation function >>>
+def generate_random_flights(from_loc, to_loc):
+    """Generates a list of random flights based on query parameters."""
+    if not from_loc or not to_loc:
+        return []
+
+    generated_flights = []
+    # 每次請求都動態生成 5 到 10 筆航班
+    for _ in range(random.randint(5, 10)):
+        airline_code = random.choice(list(AIRLINES.keys()))
+        flight = {
+            "flight": f"{airline_code}-{random.randint(100, 999)}",
+            "airline": AIRLINES[airline_code],
+            "from": from_loc,
+            "to": to_loc,
+            "time": f"{random.randint(7, 21):02d}:{random.choice(['00', '15', '30', '45'])}",
+            "price": random.randint(5000, 15000) // 100 * 100 # 價格為百位數
+        }
+        generated_flights.append(flight)
+    
+    # 依照價格排序後回傳
+    return sorted(generated_flights, key=lambda x: x['price'])
+
+
+# <<< CHANGED: The flights endpoint now calls the random generator >>>
 @app.route("/api/flights")
 @rate_limiter
 def flights():
     # 從 URL 查詢參數中獲取客戶端傳來的條件
-    # 例如: /api/flights?from=TPE&to=NRT
     query_from = request.args.get('from', default=None, type=str)
     query_to = request.args.get('to', default=None, type=str)
     
-    # 開始篩選
-    filtered_flights = ALL_FLIGHTS
-    
-    if query_from:
-        filtered_flights = [f for f in filtered_flights if f['from'].upper() == query_from.upper()]
-        
-    if query_to:
-        filtered_flights = [f for f in filtered_flights if f['to'].upper() == query_to.upper()]
-        
-    # 未來可以繼續增加對日期、價格等的篩選...
+    # 呼叫新的函式來即時生成航班資料
+    randomly_generated_flights = generate_random_flights(query_from, query_to)
 
-    # 回傳篩選後的結果
-    return jsonify({"flights": filtered_flights})
+    # 回傳動態生成的結果
+    return jsonify({"flights": randomly_generated_flights})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
