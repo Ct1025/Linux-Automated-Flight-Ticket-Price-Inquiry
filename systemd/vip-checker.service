@@ -1,0 +1,27 @@
+[Unit]
+Description=VIP Flight Ticket Checker Service
+After=network.target
+Requires=network.target
+
+[Service]
+Type=simple
+User=flightchecker
+Group=flightchecker
+WorkingDirectory=/opt/flight-checker
+Environment=PYTHONPATH=/opt/flight-checker
+ExecStart=/usr/bin/python3 /opt/flight-checker/ticket-checker.py --token=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6 --auto-mode
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vip-checker
+
+# 安全性設置
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/flight-checker/logs
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
