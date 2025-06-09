@@ -193,7 +193,10 @@ python3 cli/simulate_abuse.py --scenario distributed --rps 20
 
 1. **API 層防護**
    - Token 認證機制
-   - 速率限制 (Rate Limiting)
+   - 速率限制 (Rate Limiting)：
+     - Free 用戶: 15 次/分鐘
+     - Plus 用戶: 25 次/分鐘
+     - Pro 用戶: 100 次/分鐘
    - 權限分級控制
 
 2. **系統層防護**
