@@ -19,9 +19,13 @@ def load_user_tokens():
             token_map = {}
             for user in users:
                 permission = user.get("permission_level")
-                limit = 5
-                if permission == 'plus': limit = 15
-                elif permission == 'pro': limit = 30
+                # 調整速率限制以匹配查詢間隔
+                # free: 6秒間隔 = 每分鐘最多10次，設定為15次提供緩衝
+                # plus: 4秒間隔 = 每分鐘最多15次，設定為25次提供緩衝  
+                # pro: 2秒間隔 = 每分鐘最多30次，維持100次的高限制
+                limit = 15  # free 用戶預設限制
+                if permission == 'plus': limit = 25
+                elif permission == 'pro': limit = 100
                 token_map[user["token"]] = {"role": permission, "limit": limit}
             return token_map
         except (json.JSONDecodeError, KeyError): return {}
