@@ -1,0 +1,27 @@
+[Unit]
+Description=Normal Flight Ticket Checker Service
+After=network.target
+Requires=network.target
+
+[Service]
+Type=simple
+User=flightchecker
+Group=flightchecker
+WorkingDirectory=/opt/flight-checker
+Environment=PYTHONPATH=/opt/flight-checker
+ExecStart=/usr/bin/python3 /opt/flight-checker/ticket-checker.py --token=z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4 --auto-mode
+Restart=on-failure
+RestartSec=60
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=normal-checker
+
+# 安全性設置
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/flight-checker/logs
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
