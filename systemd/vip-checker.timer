@@ -1,0 +1,11 @@
+[Unit]
+Description=VIP Flight Checker Timer
+Requires=vip-checker.service
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=30sec
+AccuracySec=1sec
+
+[Install]
+WantedBy=timers.target
