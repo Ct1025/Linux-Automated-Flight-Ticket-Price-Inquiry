@@ -2,6 +2,7 @@ import json
 import uuid
 import os
 import sys
+import argparse # Import the argparse module
 
 # Define the path to the users.json file
 # It assumes 'data' directory is relative to the script's location
@@ -46,12 +47,18 @@ def generate_token():
     return str(uuid.uuid4()).replace('-', '')
 
 
-def register_user():
-    """CLI tool to register a new user."""
-    clear_screen()
-    print("--- 用戶註冊 ---")  # --- User Registration ---
-    username = input("輸入用戶名: ").strip()  # Enter username:
-    password = input("輸入密碼: ").strip()  # Enter password:
+def register_user(username=None, password=None, permission_level=None, auto_login=False):
+    """CLI tool to register a new user, with optional automatic input."""
+    if username is None or password is None or permission_level is None:
+        clear_screen()
+        print("--- 用戶註冊 ---")  # --- User Registration ---
+        username_input = input("輸入用戶名: ").strip()  # Enter username:
+        password_input = input("輸入密碼: ").strip()  # Enter password:
+        username = username_input if username is None else username
+        password = password_input if password is None else password
+    else:
+        # If arguments are provided, print registration info without clearing screen
+        print(f"--- 自動註冊用戶: {username} ---")
 
     users = load_users()
 
@@ -59,31 +66,38 @@ def register_user():
     if any(user['username'] == username for user in users):
         print(
             f"\n錯誤: 用戶名 '{username}' 已存在。請選擇另一個。")  # Error: Username '{username}' already exists. Please choose another.
-        input("按 Enter 鍵繼續...")  # Press Enter to continue...
-        return False  # Indicate registration failed
+        if not (username and password and permission_level): # Only prompt if not automated
+            input("按 Enter 鍵繼續...")  # Press Enter to continue...
+        return None  # Indicate registration failed
 
-    # Choose permission level with numbered options
-    while True:
-        print("\n選擇您的權限等級:")  # Choose your permission level:
-        print("1. Free: 免費方案")  # Free: Free tier
-        print("2. Plus: NT$60 / 1 個月")  # Plus: NT$60 for 1 month
-        print("3. Pro: NT$120 / 1 個月")  # Pro: NT$120 for 1 month
-        choice = input("輸入您的選擇 (1, 2, 或 3): ").strip()  # Enter your choice (1, 2, or 3):
+    # Choose permission level with numbered options if not provided
+    if permission_level is None:
+        while True:
+            print("\n選擇您的權限等級:")  # Choose your permission level:
+            print("1. Free: 免費方案")  # Free: Free tier
+            print("2. Plus: NT$60 / 1 個月")  # Plus: NT$60 for 1 month
+            print("3. Pro: NT$120 / 1 個月")  # Pro: NT$120 for 1 month
+            choice = input("輸入您的選擇 (1, 2, 或 3): ").strip()  # Enter your choice (1, 2, or 3):
 
-        permission_level = None
-        if choice == '1':
-            permission_level = 'free'
-        elif choice == '2':
-            permission_level = 'plus'
-        elif choice == '3':
-            permission_level = 'pro'
-        else:
-            print("無效的選擇。請選擇 1, 2, 或 3。")  # Invalid choice. Please choose 1, 2, or 3.
-            continue  # Ask again
+            if choice == '1':
+                permission_level = 'free'
+            elif choice == '2':
+                permission_level = 'plus'
+            elif choice == '3':
+                permission_level = 'pro'
+            else:
+                print("無效的選擇。請選擇 1, 2, 或 3。")  # Invalid choice. Please choose 1, 2, or 3.
+                continue  # Ask again
+            break # Exit loop if a valid choice was made
+    else:
+        # Validate provided permission_level
+        if permission_level.lower() not in ['free', 'plus', 'pro']:
+            print(f"錯誤: 無效的權限等級 '{permission_level}'. 請使用 'free', 'plus', 或 'pro'.")
+            if not (username and password and permission_level):
+                input("按 Enter 鍵繼續...")
+            return None
+        permission_level = permission_level.lower()
 
-        # If a valid permission level was selected, break the loop
-        if permission_level:
-            break
 
     token = generate_token()
 
@@ -103,16 +117,27 @@ def register_user():
     print(f"您的 API Token: {token}")  # Your API Token:
     print("---------------------------------")
     print("請記住您的 token 以便 API 訪問。")  # Remember your token for API access.
-    input("按 Enter 鍵繼續...")  # Press Enter to continue...
-    return True  # Indicate registration successful
+
+    if auto_login:
+        print("自動登錄到新創建的帳戶...")
+        return new_user # Return the newly created user for auto-login
+    elif not (username and password and permission_level): # Only prompt if not automated
+        input("按 Enter 鍵繼續...")  # Press Enter to continue...
+    return new_user  # Indicate registration successful and return the user
 
 
-def login_user():
-    """CLI tool to log in an existing user."""
-    clear_screen()
-    print("--- 用戶登錄 ---")  # --- User Login ---
-    username = input("輸入用戶名: ").strip()  # Enter username:
-    password = input("輸入密碼: ").strip()  # Enter password:
+def login_user(username=None, password=None):
+    """CLI tool to log in an existing user, with optional automatic input."""
+    if username is None or password is None:
+        clear_screen()
+        print("--- 用戶登錄 ---")  # --- User Login ---
+        username_input = input("輸入用戶名: ").strip()  # Enter username:
+        password_input = input("輸入密碼: ").strip()  # Enter password:
+        username = username_input if username is None else username
+        password = password_input if password is None else password
+    else:
+        print(f"--- 自動登錄用戶: {username} ---")
+
 
     users = load_users()
     logged_in_user = None
@@ -125,11 +150,13 @@ def login_user():
     if logged_in_user:
         print(
             f"\n登錄成功！歡迎, {logged_in_user['username']}！")  # Login successful! Welcome, {logged_in_user['username']}!
-        input("按 Enter 鍵繼續...")  # Press Enter to continue...
+        if not (username and password): # Only prompt if not automated
+            input("按 Enter 鍵繼續...")  # Press Enter to continue...
         return logged_in_user
     else:
         print("\n錯誤: 無效的用戶名或密碼。")  # Error: Invalid username or password.
-        input("按 Enter 鍵繼續...")  # Press Enter to continue...
+        if not (username and password): # Only prompt if not automated
+            input("按 Enter 鍵繼續...")  # Press Enter to continue...
         return None
 
 
@@ -236,6 +263,11 @@ def upgrade_permission(current_user):
         print("您目前的權限等級已是最高 (Pro)。")  # You're current permission level is the highest (Pro).
         input("按 Enter 鍵繼續...")  # Press Enter to continue...
         return
+    else: # Should not happen with current logic, but good for robustness
+        print("未知權限等級。")
+        input("按 Enter 鍵繼續...")
+        return
+
 
     # Simulate payment confirmation
     confirm = input(
@@ -320,4 +352,37 @@ def main_lobby():
 
 
 if __name__ == "__main__":
-    main_lobby()
+    parser = argparse.ArgumentParser(description="用戶管理 CLI 工具。")
+    parser.add_argument('-c', '--create', nargs='*',
+                        help="創建帳戶。可選參數: [用戶名] [密碼] [權限等級 (free, plus, pro)]。")
+    parser.add_argument('-s', '--signin', nargs='*',
+                        help="登錄帳戶。可選參數: [用戶名] [密碼]。")
+    parser.add_argument('--autologin', action='store_true',
+                        help="與 '-c' 結合使用時，自動登錄到新創建的帳戶。")
+
+    args = parser.parse_args()
+
+    if args.create is not None:
+        if len(args.create) == 0:  # -c
+            register_user()
+        elif len(args.create) == 3:  # -c [username] [password] [permission_level]
+            username, password, permission_level = args.create
+            new_user = register_user(username, password, permission_level, auto_login=args.autologin)
+            if new_user and args.autologin:
+                account_menu(new_user)
+        else:
+            print("創建帳戶的參數無效。請使用 '-c' 或 '-c [用戶名] [密碼] [權限等級]'。")
+    elif args.signin is not None:
+        if len(args.signin) == 0:  # -s
+            user = login_user()
+            if user:
+                account_menu(user)
+        elif len(args.signin) == 2:  # -s [username] [password]
+            username, password = args.signin
+            user = login_user(username, password)
+            if user:
+                account_menu(user)
+        else:
+            print("登錄帳戶的參數無效。請使用 '-s' 或 '-s [用戶名] [密碼]'。")
+    else:
+        main_lobby()
