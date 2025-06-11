@@ -352,13 +352,41 @@ def main_lobby():
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="用戶管理 CLI 工具。")
+    # Custom formatter to display help messages more clearly
+    class CustomHelpFormatter(argparse.HelpFormatter):
+        def _format_action_invocation(self, action):
+            if not action.option_strings:
+                return super()._format_action_invocation(action)
+            default_format = super()._format_action_invocation(action)
+            # Remove the default metavar which is often redundant or confusing
+            if action.nargs == '*' and action.metavar is None:
+                return default_format.replace(' []', '')
+            return default_format
+
+        def _format_usage(self, usage, actions, groups, prefix):
+            # Customize the usage string to explicitly list the commands
+            return f"""用法: python register.py [選項]
+
+可用命令:
+  1. python register.py                   : 正常運行，進入主大廳。
+  2. python register.py -c                : 進入互動式創建帳戶模式。
+  3. python register.py -c [用戶名] [密碼] [權限等級] : 自動創建帳戶，權限等級可選 'free', 'plus', 'pro'。
+  4. python register.py -c [用戶名] [密碼] [權限等級] --autologin : 自動創建帳戶並登錄。
+  5. python register.py -s                : 進入互動式登錄帳戶模式。
+  6. python register.py -s [用戶名] [密碼] : 使用指定用戶名和密碼自動登錄帳戶。
+
+"""
+
+    parser = argparse.ArgumentParser(
+        description="用戶管理 CLI 工具，支援帳戶創建、登錄與管理功能。",
+        formatter_class=CustomHelpFormatter # Use the custom formatter
+    )
     parser.add_argument('-c', '--create', nargs='*',
-                        help="創建帳戶。可選參數: [用戶名] [密碼] [權限等級 (free, plus, pro)]。")
+                        help="創建帳戶。使用 '--create' 進入互動模式，或 '--create [用戶名] [密碼] [權限等級]' 自動創建。")
     parser.add_argument('-s', '--signin', nargs='*',
-                        help="登錄帳戶。可選參數: [用戶名] [密碼]。")
+                        help="登錄帳戶。使用 '--signin' 進入互動模式，或 '--signin [用戶名] [密碼]' 自動登錄。")
     parser.add_argument('--autologin', action='store_true',
-                        help="與 '-c' 結合使用時，自動登錄到新創建的帳戶。")
+                        help="與 '-c' (自動創建帳戶) 結合使用時，在創建成功後自動登錄到新創建的帳戶。")
 
     args = parser.parse_args()
 
